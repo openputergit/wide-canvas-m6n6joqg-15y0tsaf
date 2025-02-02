@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OffersMonkey.com Advanced AI Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        .chat-bubble {
+            max-width: 80%;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .typing-indicator span {
+            animation: blink 1.4s infinite;
+            animation-fill-mode: both;
+            height: 5px;
+            width: 5px;
+            background-color: #3B82F6;
+            display: inline-block;
+            border-radius: 50%;
+            margin: 0 1px;
+        }
+
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes blink {
+            0% { opacity: 0.1; }
+            20% { opacity: 1; }
+            100% { opacity: 0.1; }
+        }
+
+        .chat-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .chat-container::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
+        }
+
+        .chat-container::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        .deal-card {
+            transition: transform 0.2s;
+        }
+
+        .deal-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .markdown a {
+            color: #2563EB;
+            text-decoration: underline;
+        }
+
+        .markdown ul {
+            list-style-type: disc;
+            padding-left: 1.5rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen flex flex-col">
+    <header class="bg-blue-600 text-white p-4 shadow-lg">
+        <div class="container mx-auto flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <img src="https://offersmonkey.com/wp-content/uploads/2023/01/Offers-Monkey.png" alt="OffersMonkey Logo" class="h-8">
+                <h1 class="text-xl font-bold">Advanced AI Assistant</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button id="clear-chat" class="px-3 py-1 bg-blue-500 hover:bg-blue-700 rounded-lg text-sm">
+                    Clear Chat
+                </button>
+                <div class="flex items-center space-x-2">
+                    <span class="inline-flex h-3 w-3 rounded-full bg-green-400"></span>
+                    <span class="text-sm">Online</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow container mx-auto p-4 flex flex-col h-[calc(100vh-8rem)]">
+        <div class="bg-white rounded-lg shadow-lg flex-grow flex flex-col">
+            <div id="chat-container" class="flex-grow p-4 overflow-y-auto chat-container space-y-4">
+                <div class="chat-bubble bg-blue-100 p-4 rounded-lg ml-4">
+                    <p class="text-gray-800 markdown">
+                        👋 Hello! I'm your advanced OffersMonkey.com AI assistant. I can help you with:
+                        <ul class="mt-2">
+                            <li>Finding the latest deals and offers</li>
+                            <li>Searching specific categories or stores</li>
+                            <li>Comparing prices across different platforms</li>
+                            <li>Getting detailed product information</li>
+                            <li>Understanding website features</li>
+                        </ul>
+                        <p class="mt-2">What would you like to know about?</p>
+                    </p>
+                </div>
+            </div>
+
+            <div class="border-t p-4">
+                <div class="flex space-x-2">
+                    <div class="flex-grow relative">
+                        <input type="text" id="user-input" 
+                               class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="Type your message here..."
+                               autofocus>
+                        <button id="voice-input" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-blue-600">
+                            <i class="bi bi-mic"></i>
+                        </button>
+                    </div>
+                    <button id="send-button" 
+                            class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition duration-200 flex items-center space-x-2">
+                        <span>Send</span>
+                        <i class="bi bi-send"></i>
+                    </button>
+                </div>
+                <div class="flex justify-between text-xs text-gray-500 mt-2">
+                    <span>Press Enter to send your message</span>
+                    <span id="typing-status"></span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const chatContainer = document.getElementById('chat-container');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const clearButton = document.getElementById('clear-chat');
+        const voiceButton = document.getElementById('voice-input');
+        const typingStatus = document.getElementById('typing-status');
+        let conversationContext = [];
+
+        function formatDealResponse(deals) {
+            return deals.map(deal => `
+                <div class="deal-card bg-white p-4 rounded-lg shadow-md hover:shadow-lg mb-4">
+                    <div class="flex items-start">
+                        <div class="flex-grow">
+                            <h3 class="font-bold text-lg text-blue-600">${deal.title}</h3>
+                            <p class="text-gray-600 mt-1">${deal.description}</p>
+                            <div class="mt-2 flex items-center space-x-4">
+                                <span class="text-green-600 font-bold">${deal.price}</span>
+                                <span class="text-gray-500">|</span>
+                                <span class="text-blue-500">${deal.store}</span>
+                            </div>
+                            <div class="mt-3">
+                                <a href="${deal.link}" target="_blank" class="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition duration-200">
+                                    View Deal
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function addMessage(content, isUser = false) {
+            const bubble = document.createElement('div');
+            bubble.className = `chat-bubble ${isUser ? 'bg-blue-600 text-white ml-auto' : 'bg-blue-100 text-gray-800'} p-4 rounded-lg ${isUser ? 'mr-4' : 'ml-4'}`;
+            
+            if (typeof content === 'string') {
+                if (content.includes('http')) {
+                    content = content.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="underline">$1</a>');
+                }
+                bubble.innerHTML = content;
+            } else {
+                bubble.innerHTML = content;
+            }
+            
+            chatContainer.appendChild(bubble);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function addTypingIndicator() {
+            const bubble = document.createElement('div');
+            bubble.className = 'chat-bubble bg-blue-100 p-4 rounded-lg ml-4 typing-indicator';
+            bubble.innerHTML = '<span></span><span></span><span></span>';
+            bubble.id = 'typing-indicator';
+            chatContainer.appendChild(bubble);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            typingStatus.textContent = 'AI is typing...';
+        }
+
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typing-indicator');
+            if (indicator) indicator.remove();
+            typingStatus.textContent = '';
+        }
+
+        async function fetchDealsData(query) {
+            try {
+                const response = await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/mongodb', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer fYBScb7ZPLOQuxszyXjhKpNq9js1',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        appSlug: 'offersmonkey-123',
+                        action: 'read',
+                        collection: 'deals',
+                        conditions: { keywords: query }
+                    })
+                });
+                return await response.json();
+            } catch (error) {
+                console.error('Error fetching deals:', error);
+                return null;
+            }
+        }
+
+        async function processUserMessage(message) {
+            if (!message.trim()) return;
+
+            addMessage(message, true);
+            userInput.value = '';
+            addTypingIndicator();
+
+            try {
+                const lowerMessage = message.toLowerCase();
+                let response;
+
+                // Simulating API call delay
+                await new Promise(resolve => setTimeout(resolve, 1500));
+
+                if (lowerMessage.includes('deal') || lowerMessage.includes('offer')) {
+                    const dealsData = await fetchDealsData(message);
+                    if (dealsData && dealsData.result) {
+                        response = formatDealResponse(dealsData.result);
+                    } else {
+                        response = `Here are some popular deals from OffersMonkey.com:
+                            <div class="space-y-4 mt-3">
+                                ${formatDealResponse([
+                                    {
+                                        title: "Amazon Great Indian Festival Sale",
+                                        description: "Up to 80% off on Electronics, Fashion, and more",
+                                        price: "Various Prices",
+                                        store: "Amazon",
+                                        link: "https://offersmonkey.com/store/amazon-deals/"
+                                    },
+                                    {
+                                        title: "Flipkart Big Billion Days",
+                                        description: "Massive discounts across all categories",
+                                        price: "Various Prices",
+                                        store: "Flipkart",
+                                        link: "https://offersmonkey.com/store/flipkart-deals/"
+                                    }
+                                ])}
+                            </div>`;
+                    }
+                } else if (lowerMessage.includes('help') || lowerMessage.includes('how')) {
+                    response = `I can assist you with:
+                        <ul class="list-disc pl-5 mt-2 space-y-1">
+                            <li>Finding specific deals by category or store</li>
+                            <li>Price comparisons across different platforms</li>
+                            <li>Latest coupons and promo codes</li>
+                            <li>Website navigation assistance</li>
+                            <li>Product recommendations</li>
+                        </ul>
+                        <p class="mt-3">Just ask me anything specific you'd like to know!`;
+                } else {
+                    response = `I understand you're asking about "${message}". To help you better, could you please specify:
+                        <ul class="list-disc pl-5 mt-2 space-y-1">
+                            <li>Are you looking for specific deals?</li>
+                            <li>Interested in a particular store?</li>
+                            <li>Looking for price comparisons?</li>
+                            <li>Need website assistance?</li>
+                        </ul>`;
+                }
+
+                removeTypingIndicator();
+                addMessage(response);
+
+            } catch (error) {
+                console.error('Error:', error);
+                removeTypingIndicator();
+                addMessage("I apologize, but I encountered an error processing your request. Please try again.");
+            }
+        }
+
+        // Event Listeners
+        sendButton.addEventListener('click', () => {
+            processUserMessage(userInput.value);
+        });
+
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                processUserMessage(userInput.value);
+            }
+        });
+
+        clearButton.addEventListener('click', () => {
+            chatContainer.innerHTML = '';
+            addMessage(`👋 Hello! I'm your advanced OffersMonkey.com AI assistant. How can I help you today?`);
+        });
+
+        // Voice Input Setup (if browser supports it)
+        if ('webkitSpeechRecognition' in window) {
+            const recognition = new webkitSpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+
+            recognition.onresult = (event) => {
+                const text = event.results[0][0].transcript;
+                userInput.value = text;
+                processUserMessage(text);
+            };
+
+            voiceButton.addEventListener('click', () => {
+                recognition.start();
+                typingStatus.textContent = 'Listening...';
+            });
+
+            recognition.onend = () => {
+                typingStatus.textContent = '';
+            };
+        } else {
+            voiceButton.style.display = 'none';
+        }
+
+        // Keep input focused for better UX
+        userInput.addEventListener('blur', () => {
+            setTimeout(() => userInput.focus(), 0);
+        });
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
